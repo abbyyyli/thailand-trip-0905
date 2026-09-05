@@ -197,6 +197,27 @@ function copyLedgerJSON(){copyText(JSON.stringify(expenses,null,2))}
 function exportLedgerJSON(){const blob=new Blob([JSON.stringify(expenses,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Thailand-Family-Trip-2026-expenses.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`已匯出 ${expenses.length} 筆記帳`)}
 function importLedgerJSON(){const box=document.getElementById('expense-json');const status=document.getElementById('json-status');status.textContent='';let data;try{data=JSON.parse(box.value)}catch(e){status.textContent='JSON 格式無法讀取';status.style.color='#a3443d';return}if(!Array.isArray(data)&&data&&Array.isArray(data.expenses))data=data.expenses;if(!Array.isArray(data)){status.textContent='最外層必須是陣列';status.style.color='#a3443d';return}const allowed=['餐飲','交通','住宿','門票','購物','其他'];const normalized=[];for(let i=0;i<data.length;i++){const x=data[i]||{};const amount=Number(x.amount);const currency=String(x.currency||'THB').toUpperCase();const date=String(x.date||'').trim();const item=String(x.item||x.description||'').trim();const payment=String(x.payment||x.paymentMethod||'未指定').trim()||'未指定';if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!item||!Number.isFinite(amount)||amount<0||!['THB','TWD'].includes(currency)){status.textContent=`第 ${i+1} 筆資料有誤`;status.style.color='#a3443d';return}normalized.push({date,item,category:allowed.includes(x.category)?x.category:'其他',payment,currency,amount})}expenses.push(...normalized);saveExpenses();renderExpenses();box.value='';status.textContent=`已附加 ${normalized.length} 筆`;status.style.color='#3d7c61';toast(`已匯入 ${normalized.length} 筆支出`)}
 function init(){document.querySelectorAll('.editable').forEach(el=>{el.innerText=localStorage.getItem('thai-trip-'+el.dataset.store)??DEFAULTS[el.id];el.addEventListener('input',()=>localStorage.setItem('thai-trip-'+el.dataset.store,el.innerText))});try{expenses=JSON.parse(localStorage.getItem('thai-trip-expenses')||'[]').map(e=>({...e,payment:e.payment||'未指定',amount:Number(e.amount)||0}))}catch(e){expenses=[]}document.getElementById('expense-date').value='2026-09-05';document.getElementById('ledger-form').addEventListener('submit',e=>{e.preventDefault();const amount=Number(document.getElementById('expense-amount').value);if(!Number.isFinite(amount)||amount<0)return;expenses.push({date:document.getElementById('expense-date').value,item:document.getElementById('expense-item').value.trim(),category:document.getElementById('expense-category').value,payment:document.getElementById('expense-payment').value.trim()||'未指定',currency:document.getElementById('expense-currency').value,amount});saveExpenses();renderExpenses();document.getElementById('expense-item').value='';document.getElementById('expense-amount').value='';toast('已新增支出')});renderExpenses()}
-init();
+const EXPENSE_PROMPT=`請把我提供的收據截圖或消費紀錄整理成可匯入 Thailand Family Trip 記帳頁面的 JSON。
+
+輸出規則：
+
+1. 只輸出 JSON 陣列，不要加說明、標題或 Markdown 程式碼框。
+2. 每筆消費使用以下欄位：
+   - \`date\`：YYYY-MM-DD
+   - \`item\`：消費項目或店名
+   - \`category\`：只能使用「餐飲、交通、住宿、門票、購物、其他」
+   - \`payment\`：例如「現金、台新信用卡、其他信用卡、行動支付、轉帳、其他」；無法確認時填「未指定」
+   - \`currency\`：只能使用 \`THB\` 或 \`TWD\`
+   - \`amount\`：純數字，不要加入貨幣符號或千分位逗號
+3. 一筆交易對應一個物件。
+4. 同一張收據原則上合併成一筆；除非我要求拆分品項。
+5. 不要猜測看不清楚的金額、日期或支付方式；無法確認時請先詢問我。
+6. 最後自行檢查 JSON 格式必須有效，並確認所有金額加總正確。
+
+我要整理的內容如下：
+【在這裡貼文字，或附上收據截圖】`;
+function copyExpensePrompt(){copyText(EXPENSE_PROMPT)}
+function setupPromptButton(){const row=document.querySelector('.json-buttons');if(!row)return;const button=document.createElement('button');button.type='button';button.textContent='📋 複製 Prompt';button.onclick=copyExpensePrompt;row.insertBefore(button,document.getElementById('json-status'))}
+init();setupPromptButton();
 </script>
 </body></html>
